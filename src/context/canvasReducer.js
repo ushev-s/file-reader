@@ -1,11 +1,12 @@
 import {
   READ_FILE,
-  WRITE_FILE,
-  BUILD_CANVAS,
+  DRAW_BUCKET,
   DRAW_LINE,
-  BUILD_RECTANGLE,
-  BUILD_BUCKET,
-  FILE_ERROR
+  DRAW_RECTANGLE,
+  OUTPUT_ERROR,
+  FILE_ERROR,
+  CLEAR_ERROR,
+  CLEAR_OUTPUT
 } from './types';
 
 export default (state, action) => {
@@ -19,13 +20,38 @@ export default (state, action) => {
     case DRAW_LINE:
       return {
         ...state,
-        lines: action.payload
+        output: { ...state.output, lines: action.payload }
+      };
+    case DRAW_RECTANGLE:
+      return {
+        ...state,
+        output: { ...state.output, rectangles: action.payload }
+      };
+    case DRAW_BUCKET:
+      return {
+        ...state,
+        output: { ...state.output, buckets: action.payload }
       };
     case FILE_ERROR:
       return {
         ...state,
         error: action.payload,
         input: null
+      };
+    case OUTPUT_ERROR:
+      return {
+        ...state,
+        outputError: [...state.outputError, action.payload]
+      };
+    case CLEAR_ERROR:
+      return {
+        ...state,
+        outputError: []
+      };
+    case CLEAR_OUTPUT:
+      return {
+        ...state,
+        output: {}
       };
     default:
       return state;

@@ -3,18 +3,21 @@ import CanvasContext from './canvasContext';
 import canvasReducer from './canvasReducer';
 import {
   READ_FILE,
-  WRITE_FILE,
-  BUILD_CANVAS,
-  BUILD_RECTANGLE,
+  DRAW_BUCKET,
+  DRAW_RECTANGLE,
   DRAW_LINE,
-  FILE_ERROR
+  FILE_ERROR,
+  OUTPUT_ERROR,
+  CLEAR_ERROR,
+  CLEAR_OUTPUT
 } from './types';
 
 const CanvasState = props => {
   const initialState = {
     input: null,
-    lines: null,
-    error: null
+    output: {},
+    error: null,
+    outputError: []
   };
 
   const [state, dispatch] = useReducer(canvasReducer, initialState);
@@ -86,22 +89,69 @@ const CanvasState = props => {
 
   //Set Error
   const setError = err => {
-    dispatch({ type: FILE_ERROR, payload: err });
+    dispatch({
+      type: FILE_ERROR,
+      payload: err
+    });
+  };
+
+  //Clear Error
+  const clearError = () => {
+    dispatch({
+      type: CLEAR_ERROR
+    });
+  };
+
+  //Clear Output
+  const clearOutput = () => {
+    dispatch({
+      type: CLEAR_OUTPUT
+    });
   };
 
   //Draw border
-  const drawLine = (elem, lines) => {
+  const drawLine = (
+    elem,
+    input,
+    drawLines = null,
+    param = DRAW_LINE,
+    content = 'x'
+  ) => {
+    const { rectangles, lines } = input;
+
     let linesContent = [];
     const startX = elem.offsetLeft;
     const startY = elem.offsetTop;
 
-    lines.forEach(line => {
+    if (!drawLines) {
+      drawLines = lines;
+    }
+
+    drawLines.forEach((line, num) => {
       if (
         isNaN(line.start.x) ||
         isNaN(line.start.y) ||
         isNaN(line.end.x) ||
         isNaN(line.end.y)
       ) {
+        let type = null;
+        switch (param) {
+          case DRAW_LINE:
+            type = 'line';
+            break;
+          case DRAW_RECTANGLE:
+            type = 'rectangle';
+            break;
+          case DRAW_BUCKET:
+            type = 'bucket';
+            break;
+          default:
+            type = 'line';
+        }
+        dispatch({
+          type: OUTPUT_ERROR,
+          payload: `Prohibited coordinates for the ${type}#${num + 1}`
+        });
         return;
       }
 
@@ -117,19 +167,78 @@ const CanvasState = props => {
         start = line.start.x + startX;
         end = line.end.x + startX;
       } else {
+        dispatch({
+          type: OUTPUT_ERROR,
+          payload: `Please, check coordinates for the line#${num +
+            1}. This application only supports horizontal or vertical lines!`
+        });
         return;
       }
 
-      for (let i = start; i < end; i += 10) {
+      let revers = start > end;
+
+      for (
+        let i = start;
+        revers ? i >= end : i <= end;
+        i += revers ? -10 : 10
+      ) {
+        //Prevent duplicates
+        let duplicate = false;
+
+        linesContent.forEach(el => {
+          if (vertical) {
+            if (
+              el.top === `${i}px` &&
+              el.left === `${line.start.x + startX}px`
+            ) {
+              duplicate = true;
+            }
+          } else {
+            if (
+              el.left === `${i}px` &&
+              el.top === `${line.start.y + startY}px`
+            ) {
+              duplicate = true;
+            }
+          }
+        });
+
+        if (duplicate) {
+          continue;
+        }
+
+        //Prevent duplicates from bucket
+        if (param === DRAW_BUCKET) {
+          duplicate = false;
+          lines.forEach(l => {
+            if (l.left === `${i}px` && l.top === `${line.start.y + startY}px`) {
+              duplicate = true;
+            }
+          });
+          rectangles.forEach(rect => {
+            if (
+              rect.left === `${i}px` &&
+              rect.top === `${line.start.y + startY}px`
+            ) {
+              duplicate = true;
+            }
+          });
+
+          if (duplicate) {
+            continue;
+          }
+        }
+
+        //Add elements for constructor array
         if (vertical) {
           linesContent.push({
-            content: 'x',
-            left: `${line.start.x + startX - 10}px`,
+            content: content,
+            left: `${line.start.x + startX}px`,
             top: `${i}px`
           });
         } else {
           linesContent.push({
-            content: 'x',
+            content: content,
             left: `${i}px`,
             top: `${line.start.y + startY}px`
           });
@@ -137,8 +246,91 @@ const CanvasState = props => {
       }
     });
     dispatch({
-      type: DRAW_LINE,
+      type: param,
       payload: linesContent
+    });
+  };
+
+  //Draw rectangle
+  const drawRectangle = (elem, input) => {
+    const { rectangles } = input;
+    let lines = [];
+
+    rectangles.forEach((rect, num) => {
+      lines.push(
+        {
+          start: {
+            x: rect.start.x,
+            y: rect.start.y
+          },
+          end: {
+            x: rect.end.x,
+            y: rect.start.y
+          }
+        },
+        {
+          start: {
+            x: rect.end.x,
+            y: rect.start.y
+          },
+          end: {
+            x: rect.end.x,
+            y: rect.end.y
+          }
+        },
+        {
+          start: {
+            x: rect.end.x,
+            y: rect.end.y
+          },
+          end: {
+            x: rect.start.x,
+            y: rect.end.y
+          }
+        },
+        {
+          start: {
+            x: rect.start.x,
+            y: rect.end.y
+          },
+          end: {
+            x: rect.start.x,
+            y: rect.start.y
+          }
+        }
+      );
+
+      drawLine(elem, input, lines, DRAW_RECTANGLE);
+    });
+  };
+
+  //Bucket Fill
+  const bucketFill = (elem, input, output) => {
+    const { buckets, canvas } = input;
+
+    buckets.forEach((bucket, num) => {
+      if (bucket.x > canvas.width || bucket.y > canvas.height) {
+        dispatch({
+          type: OUTPUT_ERROR,
+          payload: `Bucket's#${num + 1} coordinates outside the canvas border!`
+        });
+        return;
+      }
+      let lines = [];
+      for (let i = 0; i < bucket.y; i += 10) {
+        lines.push({
+          start: {
+            x: 0,
+            y: i
+          },
+          end: {
+            x: bucket.x - 10,
+            y: i
+          }
+        });
+      }
+
+      drawLine(elem, output, lines, DRAW_BUCKET, bucket.color);
     });
   };
 
@@ -146,11 +338,16 @@ const CanvasState = props => {
     <CanvasContext.Provider
       value={{
         input: state.input,
-        lines: state.lines,
+        output: state.output,
         error: state.error,
+        outputError: state.outputError,
         readFile,
         setError,
-        drawLine
+        clearError,
+        drawLine,
+        drawRectangle,
+        bucketFill,
+        clearOutput
       }}
     >
       {props.children}

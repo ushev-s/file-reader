@@ -3,7 +3,14 @@ import CanvasContext from '../../context/canvasContext';
 
 const InputPreview = () => {
   const canvasContext = useContext(CanvasContext);
-  const { readFile, setError, error, input } = canvasContext;
+  const {
+    readFile,
+    setError,
+    error,
+    input,
+    clearOutput,
+    output
+  } = canvasContext;
   const fileRef = React.useRef(null);
 
   const onChange = e => {
@@ -12,6 +19,9 @@ const InputPreview = () => {
       if (file.type !== 'text/plain') {
         setError('Please, upload correct .txt file!');
         return;
+      }
+      if (output) {
+        clearOutput();
       }
       readFile(file);
     } catch (err) {
@@ -22,6 +32,7 @@ const InputPreview = () => {
   const onClick = e => {
     if (input) {
       fileRef.current.value = '';
+      clearOutput();
     }
   };
 
@@ -45,6 +56,16 @@ const InputPreview = () => {
         </div>
       </div>
       <div>{error && <span className='red-text'>{error}</span>}</div>
+      <h5 className='center-align  my-column'>
+        Recomended input.txt file data:
+      </h5>
+      <div className='card-panel hoverable'>
+        <p>C 230 100</p>
+        <p>L 10 20 60 20</p>
+        <p>L 60 30 60 50</p>
+        <p>R 160 10 200 30</p>
+        <p>B 100 30 o</p>
+      </div>
     </div>
   );
 };
