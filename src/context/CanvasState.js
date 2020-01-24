@@ -37,10 +37,17 @@ const CanvasState = props => {
           const rowArr = row.split(' ');
           if (rowArr.indexOf('C') >= 0) {
             if (rowArr.length === 3) {
+              if(Number(rowArr[1]) && Number(rowArr[2])){
               params.canvas = {
-                width: rowArr[1],
-                height: rowArr[2]
+                width: Number(rowArr[1]),
+                height: Number(rowArr[2])
               };
+            } else {
+              dispatch({
+                type: OUTPUT_ERROR,
+                payload: `Prohibited coordinates for the canvas`
+              });
+            }
             }
           } else if (rowArr.indexOf('L') >= 0) {
             if (rowArr.length === 5) {
